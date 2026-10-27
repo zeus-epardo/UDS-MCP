@@ -1,21 +1,14 @@
 # CLAUDE.md
 
-Context for Claude sessions working on UDS-MCP.
+Context for Claude sessions working on UDS-MCP. Team-wide memory and the session ritual
+live in Zeus's global `~/.claude/CLAUDE.md`; this file only holds what is specific to
+this project. At the end of a session, update "Decisions" and "Next steps" here.
 
-## Team
+## Project
 
 UDS-MCP is created by Zeus Epardo and co-created with Claude. It is free, MIT-licensed and
 doubles as Zeus's public portfolio, so code quality, honest docs and a clean history matter.
-Talk with Zeus in Spanish; keep code, comments, docs and commit messages in English
-(`TEAM.md` is the exception: it is our working notebook, in Spanish).
-
-## Team memory
-
-@TEAM.md
-
-Follow the session ritual in `TEAM.md`: at the start, read it plus recent `git log` and
-summarize where we are; before the last commit of a session, update its log, decisions
-and pending items.
+Talk with Zeus in Spanish; keep code, comments, docs and commit messages in English.
 
 ## Ground rules
 
@@ -44,4 +37,21 @@ and pending items.
 - `uds_mcp/core/` — `config.py` (ECU TOML → pydantic), `client.py` (`UdsClient`
   over udsoncan), `results.py` (structured responses incl. NRC names).
 - `uds_mcp/interfaces/` — `open_bus()` maps our interface names to python-can.
+- `tests/fake_ecu.py` — scripted ECU for the core tests, to be replaced by the simulator.
 - `uds_mcp/server/`, `classify/`, `testplan/`, `sim/` — not implemented yet.
+
+## Decisions
+
+- 2026-10-27 — Core built on `udsoncan` + `can-isotp`: mature, MIT, lets us focus on MCP.
+- 2026-10-27 — Every service returns a `UdsResult` (JSON-friendly, named NRCs) and never
+  raises UDS exceptions, so MCP tools can return it as is.
+
+## Next steps
+
+- [ ] Decide: simulator config in the ECU TOML (`[sim]` section) or in a separate file.
+- [ ] Decide: simulator and MCP server as separate steps, or together up to the demo.
+- [ ] Software simulator (`uds_mcp/sim/`) that replaces `tests/fake_ecu.py`; same code
+      later runs on a Raspberry Pi 5 over SocketCAN.
+- [ ] MCP server with FastMCP (stdio) and the first tools; `--interface sim` starts the
+      simulator so the demo works without hardware.
+- [ ] Claim/release access manager together with the HTTP transport.
