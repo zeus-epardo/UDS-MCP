@@ -1,0 +1,26 @@
+# Example ECU configuration. Copy to <name>.local.toml and edit.
+# Values below are illustrative only (standard OBD tester/ECU addressing).
+
+[ecu]
+name = "example-ecu"
+request_id = 0x7E0
+response_id = 0x7E8
+functional_id = 0x7DF
+addressing = "normal"      # normal | extended
+can_fd = false
+bitrate = 500000
+data_bitrate = 2000000     # used only when can_fd = true
+
+[timing]
+p2_ms = 50
+p2_star_ms = 5000
+tester_present_interval_ms = 2000
+
+[dids]
+# Standard DIDs defined in ISO 14229-1 Annex C are fine to list here.
+0xF186 = { name = "ActiveDiagnosticSession", length = 1 }
+0xF190 = { name = "VIN", length = 17, encoding = "ascii" }
+
+[security]
+# Plug in your own key algorithm as a Python import path; never commit the implementation.
+level_1 = { seed_len = 4, key_algorithm = "my_private_pkg.keys:level1" }
