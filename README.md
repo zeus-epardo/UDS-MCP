@@ -4,7 +4,7 @@
 
 UDS-MCP exposes Unified Diagnostic Services as [Model Context Protocol](https://modelcontextprotocol.io) tools, so any MCP client (Claude Desktop, an IDE agent, a custom test runner) can run diagnostics against a real ECU on a CAN bus — or against the built-in simulator — without touching the hardware directly.
 
-> Status: **early development**. The UDS core and PCAN backend are functional; the MCP layer, additional interfaces and the simulator are in progress. See the [roadmap](#roadmap).
+> Status: **early development**. The UDS client core is implemented and tested against a virtual CAN bus; hardware backends, the MCP layer and the simulator are in progress. See the [roadmap](#roadmap).
 
 ---
 
@@ -21,16 +21,15 @@ Diagnostic benches are usually a tower with a CAN interface and one device under
 
 | Area | Status |
 |---|---|
-| ISO 14229 services (0x10, 0x11, 0x14, 0x19, 0x22, 0x27, 0x2E, 0x31, 0x3E, …) | ✅ core implemented |
-| ISO 15765-2 (ISO-TP) transport over CAN / CAN FD | ✅ |
-| PCAN (Peak) interface | ✅ |
-| Intrepid neoVI / ValueCAN 4 interface | 🧪 implemented, untested on hardware |
-| Vector (XL driver) interface | 🔜 planned |
+| ISO 14229 client services (0x10, 0x11, 0x14, 0x19, 0x22, 0x27, 0x2E, 0x31, 0x3E, raw) | ✅ built on [udsoncan](https://github.com/pylessard/python-udsoncan) |
+| ISO 15765-2 (ISO-TP) transport over CAN / CAN FD | ✅ built on [can-isotp](https://github.com/pylessard/python-can-isotp) |
+| Virtual CAN bus (no hardware, used by tests) | ✅ |
+| PCAN · Intrepid neoVI / ValueCAN 4 · Vector XL · SocketCAN | 🧪 wired through python-can, not yet validated on hardware |
 | MCP tools and resources | 🚧 in progress |
 | Claim / release model for shared DUT access | 🚧 in progress |
 | Live traffic reader with message classification | 🔜 planned |
 | ECU simulator (Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT) | 🔜 planned |
-| Test-plan execution with Excel report export | 🔜 port from existing GUI tool |
+| Test-plan execution with Excel report export | 🔜 planned |
 
 ## Architecture
 
@@ -137,11 +136,11 @@ docs/
 
 ## Roadmap
 
-1. **MCP layer** — wrap the existing UDS core as MCP tools; claim/release access manager.
-2. **Multi-interface** — validate neoVI / ValueCAN 4 on hardware; add Vector XL and SocketCAN.
+1. **MCP layer** — expose the UDS client as MCP tools; claim/release access manager.
+2. **Multi-interface** — validate PCAN, neoVI / ValueCAN 4, Vector XL and SocketCAN on hardware.
 3. **Live traffic reader** — passive bus capture with classification against a configurable rule database.
 4. **Simulator** — a configurable UDS ECU on Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT, plus a pure-software mode for CI.
-5. **Test plans** — port the test-plan runner and Excel reporting from the existing GUI tool.
+5. **Test plans** — a test-plan runner with Excel report export.
 
 ## Scope and disclaimer
 
