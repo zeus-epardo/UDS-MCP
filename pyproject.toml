@@ -60,7 +60,6 @@ select = ["E", "F", "I", "B", "UP", "N"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
 addopts = "-q"
 
 [tool.mypy]

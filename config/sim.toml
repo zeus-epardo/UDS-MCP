@@ -1,0 +1,52 @@
+# Demo ECU for the simulator. Generic, made-up values only: safe to commit.
+# The client reads the top-level sections; the simulator also reads [sim].
+
+[ecu]
+name = "uds-mcp-demo-ecu"
+request_id = 0x7E0
+response_id = 0x7E8
+functional_id = 0x7DF
+addressing = "normal"
+can_fd = false
+bitrate = 500000
+
+[timing]
+p2_ms = 50
+p2_star_ms = 5000
+tester_present_interval_ms = 2000
+
+[dids]
+0xF186 = { name = "ActiveDiagnosticSession", length = 1 }
+0xF18C = { name = "ECUSerialNumber", length = 10, encoding = "ascii" }
+0xF190 = { name = "VIN", length = 17, encoding = "ascii" }
+0xF195 = { name = "SystemSupplierECUSoftwareVersion", length = 6, encoding = "ascii" }
+0x0100 = { name = "DemoCalibrationValue", length = 2 }
+
+[security]
+# Demo algorithm (seed XOR 0xFF). Never commit a real one.
+level_1 = { seed_len = 4, key_algorithm = "uds_mcp.sim.demo_keys:xor_ff" }
+
+[sim]
+sessions = [1, 2, 3]
+reset_types = [1, 2, 3]
+s3_ms = 5000
+max_key_attempts = 3
+
+[sim.dids]
+0xF186 = { value = "01" }
+0xF18C = { value = "SIM0000001" }
+0xF190 = { value = "UDSMCP00000000001", writable = true, write_sessions = [3], write_security_level = 1 }
+0xF195 = { value = "0.1.0 " }
+0x0100 = { value = "0064", writable = true, read_sessions = [3], write_sessions = [3] }
+
+[sim.routines]
+0x0203 = { name = "DemoSelfTest", sessions = [3], result = "00", duration_ms = 300 }
+0x0204 = { name = "DemoLockedRoutine", sessions = [3], security_level = 1, result = "01" }
+
+[[sim.dtcs]]
+code = 0x012300
+status = 0x2F
+
+[[sim.dtcs]]
+code = 0xC07300
+status = 0x08

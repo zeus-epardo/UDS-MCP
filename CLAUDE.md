@@ -37,8 +37,11 @@ Talk with Zeus in Spanish; keep code, comments, docs and commit messages in Engl
 - `uds_mcp/core/` — `config.py` (ECU TOML → pydantic), `client.py` (`UdsClient`
   over udsoncan), `results.py` (structured responses incl. NRC names).
 - `uds_mcp/interfaces/` — `open_bus()` maps our interface names to python-can.
-- `tests/fake_ecu.py` — scripted ECU for the core tests, to be replaced by the simulator.
-- `uds_mcp/server/`, `classify/`, `testplan/`, `sim/` — not implemented yet.
+- `uds_mcp/sim/` — `ecu.py` (`SimulatedEcu`: pure request → replies logic, injectable
+  clock), `server.py` (`SimulatorServer`: ISO-TP thread on any bus), `__main__.py`
+  (standalone), `demo_keys.py` (public demo key algorithm only).
+- `config/sim.toml` — demo ECU used by tests and `--interface sim`; generic values only.
+- `uds_mcp/server/`, `classify/`, `testplan/` — not implemented yet.
 
 ## Decisions
 
@@ -46,12 +49,13 @@ Talk with Zeus in Spanish; keep code, comments, docs and commit messages in Engl
 - 2026-10-27 — Every service returns a `UdsResult` (JSON-friendly, named NRCs) and never
   raises UDS exceptions, so MCP tools can return it as is.
 
+- 2026-10-27 — Simulator behaviour lives in the same TOML as the ECU config (`[sim]`), so
+  one file describes what the client expects and what the simulator answers.
+- 2026-10-27 — Simulator first, MCP server next, as separate steps.
+
 ## Next steps
 
-- [ ] Decide: simulator config in the ECU TOML (`[sim]` section) or in a separate file.
-- [ ] Decide: simulator and MCP server as separate steps, or together up to the demo.
-- [ ] Software simulator (`uds_mcp/sim/`) that replaces `tests/fake_ecu.py`; same code
-      later runs on a Raspberry Pi 5 over SocketCAN.
 - [ ] MCP server with FastMCP (stdio) and the first tools; `--interface sim` starts the
       simulator so the demo works without hardware.
 - [ ] Claim/release access manager together with the HTTP transport.
+- [ ] Validate the simulator on the Raspberry Pi 5 + Waveshare CAN FD HAT.

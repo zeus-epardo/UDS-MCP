@@ -51,17 +51,57 @@ class SecurityLevel(BaseModel):
         return getattr(importlib.import_module(module_name), attr)
 
 
+def _int_keys(value: dict) -> dict:
+    # TOML table keys are strings, so DIDs and routine IDs arrive as "0xF190".
+    return {int(k, 0) if isinstance(k, str) else k: v for k, v in value.items()}
+
+
+class SimDid(BaseModel):
+    """Simulated DID. ``value`` is ASCII text for DIDs with ``encoding = "ascii"``, else hex."""
+
+    value: str
+    writable: bool = False
+    read_sessions: list[int] | None = None
+    write_sessions: list[int] | None = None
+    write_security_level: int | None = None
+
+
+class SimRoutine(BaseModel):
+    name: str = ""
+    sessions: list[int] | None = None
+    security_level: int | None = None
+    result: str = Field(default="", description="Hex status record returned by the routine")
+    duration_ms: int = Field(default=0, ge=0, description="Answers 0x78 first when above P2")
+
+
+class SimDtc(BaseModel):
+    code: int
+    status: int
+
+
+class SimConfig(BaseModel):
+    """Behaviour of the ECU simulator; ignored by the client."""
+
+    sessions: list[int] = [1, 2, 3]
+    reset_types: list[int] = [1, 2, 3]
+    s3_ms: int = 5000
+    seed: str | None = Field(default=None, description="Fixed hex seed; random when omitted")
+    max_key_attempts: int = 3
+    dids: dict[int, SimDid] = Field(default_factory=dict)
+    routines: dict[int, SimRoutine] = Field(default_factory=dict)
+    dtcs: list[SimDtc] = Field(default_factory=list)
+
+    _parse_ids = field_validator("dids", "routines", mode="before")(_int_keys)
+
+
 class EcuConfig(BaseModel):
     ecu: EcuSettings = Field(default_factory=EcuSettings)
     timing: TimingSettings = Field(default_factory=TimingSettings)
     dids: dict[int, DidSpec] = Field(default_factory=dict)
     security: dict[int, SecurityLevel] = Field(default_factory=dict)
+    sim: SimConfig = Field(default_factory=SimConfig)
 
-    @field_validator("dids", mode="before")
-    @classmethod
-    def _parse_did_keys(cls, value: dict) -> dict:
-        # TOML table keys are strings, so DIDs arrive as "0xF190".
-        return {int(k, 0) if isinstance(k, str) else k: v for k, v in value.items()}
+    _parse_did_keys = field_validator("dids", mode="before")(_int_keys)
 
     @field_validator("security", mode="before")
     @classmethod

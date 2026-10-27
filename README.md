@@ -28,7 +28,8 @@ Diagnostic benches are usually a tower with a CAN interface and one device under
 | MCP tools and resources | 🚧 in progress |
 | Claim / release model for shared DUT access | 🚧 in progress |
 | Live traffic reader with message classification | 🔜 planned |
-| ECU simulator (Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT) | 🔜 planned |
+| Software ECU simulator, configured from TOML (sessions, S3, security, DIDs, routines, DTCs, 0x78) | ✅ |
+| Simulator on Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT (SocketCAN) | 🧪 runs via `python -m uds_mcp.sim`, not yet validated on hardware |
 | Test-plan execution with Excel report export | 🔜 planned |
 
 ## Architecture
@@ -71,7 +72,20 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -e ".[dev]"
 ```
 
+### Run the simulator
+
+The simulator answers like a real ECU, configured by the `[sim]` section of
+[`config/sim.toml`](config/sim.toml): sessions with S3 timeout, seed/key security access,
+session- and security-gated DIDs and routines, DTCs and response-pending (0x78).
+
+```bash
+# Standalone ECU on a Raspberry Pi with a CAN HAT
+python -m uds_mcp.sim --interface socketcan --channel can0 --config config/sim.toml
+```
+
 ### Run the server
+
+> The MCP server is not wired up yet; the command below currently only prints its settings.
 
 ```bash
 # Against a PCAN interface
@@ -139,7 +153,7 @@ docs/
 1. **MCP layer** — expose the UDS client as MCP tools; claim/release access manager.
 2. **Multi-interface** — validate PCAN, neoVI / ValueCAN 4, Vector XL and SocketCAN on hardware.
 3. **Live traffic reader** — passive bus capture with classification against a configurable rule database.
-4. **Simulator** — a configurable UDS ECU on Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT, plus a pure-software mode for CI.
+4. **Simulator on hardware** — validate the software simulator on a Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT.
 5. **Test plans** — a test-plan runner with Excel report export.
 
 ## Scope and disclaimer
