@@ -9,5 +9,5 @@ def test_version_is_set():
 def test_defaults():
     args = build_parser().parse_args([])
     assert args.interface == "sim"
-    assert args.bitrate == 500_000
+    assert args.bitrate is None
     assert args.transport == "stdio"

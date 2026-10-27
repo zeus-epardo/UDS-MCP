@@ -1,15 +1,13 @@
 """SimulatedEcu logic, without a bus."""
 
-from pathlib import Path
-
 import pytest
 
 from uds_mcp.core import load_config
 from uds_mcp.core.config import EcuConfig
-from uds_mcp.sim import SimulatedEcu
+from uds_mcp.sim import DEMO_CONFIG, SimulatedEcu
 from uds_mcp.sim.demo_keys import xor_ff
 
-CONFIG = Path(__file__).parent.parent / "config" / "sim.toml"
+CONFIG = DEMO_CONFIG
 
 
 class FakeClock:

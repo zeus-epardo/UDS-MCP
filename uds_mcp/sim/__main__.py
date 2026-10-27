@@ -1,6 +1,6 @@
 """Run the simulator as a standalone ECU, e.g. on a Raspberry Pi with a CAN HAT.
 
-python -m uds_mcp.sim --interface socketcan --channel can0 --config config/sim.toml
+python -m uds_mcp.sim --interface socketcan --channel can0 --config my-ecu.local.toml
 """
 
 from __future__ import annotations
@@ -9,20 +9,18 @@ import argparse
 import signal
 import sys
 import threading
-from pathlib import Path
 
 from uds_mcp.core.config import load_config
 from uds_mcp.interfaces import PYTHON_CAN_INTERFACES, open_bus
+from uds_mcp.sim import DEMO_CONFIG
 from uds_mcp.sim.server import SimulatorServer
-
-DEFAULT_CONFIG = Path(__file__).resolve().parents[2] / "config" / "sim.toml"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m uds_mcp.sim", description="UDS ECU simulator")
     parser.add_argument("--interface", choices=tuple(PYTHON_CAN_INTERFACES), default="sim")
     parser.add_argument("--channel", default=None)
-    parser.add_argument("--config", default=str(DEFAULT_CONFIG))
+    parser.add_argument("--config", default=str(DEMO_CONFIG))
     args = parser.parse_args(argv)
 
     config = load_config(args.config)

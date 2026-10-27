@@ -40,22 +40,31 @@ Talk with Zeus in Spanish; keep code, comments, docs and commit messages in Engl
 - `uds_mcp/sim/` — `ecu.py` (`SimulatedEcu`: pure request → replies logic, injectable
   clock), `server.py` (`SimulatorServer`: ISO-TP thread on any bus), `__main__.py`
   (standalone), `demo_keys.py` (public demo key algorithm only).
-- `config/sim.toml` — demo ECU used by tests and `--interface sim`; generic values only.
-- `uds_mcp/server/`, `classify/`, `testplan/` — not implemented yet.
+  `demo_ecu.toml` is the demo ECU used by tests and `--interface sim` (generic values only),
+  exposed as `uds_mcp.sim.DEMO_CONFIG`.
+- `uds_mcp/server/app.py` — `build_server(client)`: MCP tools (hex-string inputs, `UdsResult`
+  JSON out; bad input raises `ToolError`). Built on MCP SDK 2.x (`MCPServer`, not FastMCP).
+- `uds_mcp/cli.py` — `open_session()` wires bus, simulator (for `sim`), client with keep-alive
+  and server; `main()` runs stdio or streamable HTTP.
+- `examples/demo_client.py` — scripted MCP session against the simulator.
+- `uds_mcp/classify/`, `testplan/` — not implemented yet.
 
 ## Decisions
 
 - 2026-10-27 — Core built on `udsoncan` + `can-isotp`: mature, MIT, lets us focus on MCP.
 - 2026-10-27 — Every service returns a `UdsResult` (JSON-friendly, named NRCs) and never
   raises UDS exceptions, so MCP tools can return it as is.
-
 - 2026-10-27 — Simulator behaviour lives in the same TOML as the ECU config (`[sim]`), so
   one file describes what the client expects and what the simulator answers.
 - 2026-10-27 — Simulator first, MCP server next, as separate steps.
+- 2026-10-27 — MCP tools take hex strings and return `UdsResult` JSON; a negative response
+  is a normal result, only bad input is a tool error.
+- 2026-10-27 — `UdsClient` runs a TesterPresent keep-alive (0x3E 80) outside the default
+  session, because an LLM between tool calls easily exceeds S3.
 
 ## Next steps
 
-- [ ] MCP server with FastMCP (stdio) and the first tools; `--interface sim` starts the
-      simulator so the demo works without hardware.
 - [ ] Claim/release access manager together with the HTTP transport.
 - [ ] Validate the simulator on the Raspberry Pi 5 + Waveshare CAN FD HAT.
+- [ ] Validate the server against real ECUs through PCAN, neoVI and Vector.
+- [ ] Record a demo (GIF) of Claude driving the simulator for the README.

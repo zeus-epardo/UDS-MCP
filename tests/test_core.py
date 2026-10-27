@@ -10,13 +10,13 @@ import pytest
 from uds_mcp.core import EcuConfig, UdsClient, load_config, nrc_name
 from uds_mcp.core.config import SimDid
 from uds_mcp.interfaces import open_bus
-from uds_mcp.sim import SimulatorServer
+from uds_mcp.sim import DEMO_CONFIG, SimulatorServer
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
 
 
 def sim_config(**timing) -> EcuConfig:
-    config = load_config(CONFIG_DIR / "sim.toml")
+    config = load_config(DEMO_CONFIG)
     config.timing = config.timing.model_copy(
         update={"p2_ms": 200, "request_timeout_ms": 3000, **timing}
     )

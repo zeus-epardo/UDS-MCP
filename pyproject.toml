@@ -22,7 +22,7 @@ classifiers = [
   "Topic :: System :: Hardware",
 ]
 dependencies = [
-  "mcp>=1.0",
+  "mcp>=2.3",
   "python-can>=4.3",
   "can-isotp>=2.0",
   "udsoncan>=1.26",

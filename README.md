@@ -4,7 +4,7 @@
 
 UDS-MCP exposes Unified Diagnostic Services as [Model Context Protocol](https://modelcontextprotocol.io) tools, so any MCP client (Claude Desktop, an IDE agent, a custom test runner) can run diagnostics against a real ECU on a CAN bus — or against the built-in simulator — without touching the hardware directly.
 
-> Status: **early development**. The UDS client core is implemented and tested against a virtual CAN bus; hardware backends, the MCP layer and the simulator are in progress. See the [roadmap](#roadmap).
+> Status: **early development**. The MCP server, UDS client core and ECU simulator work end to end on a virtual CAN bus — try it with no hardware. Hardware backends are wired but not yet validated, and claim/release access control is next. See the [roadmap](#roadmap).
 
 ---
 
@@ -25,8 +25,9 @@ Diagnostic benches are usually a tower with a CAN interface and one device under
 | ISO 15765-2 (ISO-TP) transport over CAN / CAN FD | ✅ built on [can-isotp](https://github.com/pylessard/python-can-isotp) |
 | Virtual CAN bus (no hardware, used by tests) | ✅ |
 | PCAN · Intrepid neoVI / ValueCAN 4 · Vector XL · SocketCAN | 🧪 wired through python-can, not yet validated on hardware |
-| MCP tools and resources | 🚧 in progress |
-| Claim / release model for shared DUT access | 🚧 in progress |
+| MCP server (stdio) with UDS tools and a TesterPresent keep-alive | ✅ |
+| MCP over HTTP (streamable) | 🧪 starts, no access control yet |
+| Claim / release model for shared DUT access | 🔜 next |
 | Live traffic reader with message classification | 🔜 planned |
 | Software ECU simulator, configured from TOML (sessions, S3, security, DIDs, routines, DTCs, 0x78) | ✅ |
 | Simulator on Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT (SocketCAN) | 🧪 runs via `python -m uds_mcp.sim`, not yet validated on hardware |
@@ -74,30 +75,46 @@ pip install -e ".[dev]"
 
 ### Run the simulator
 
-The simulator answers like a real ECU, configured by the `[sim]` section of
-[`config/sim.toml`](config/sim.toml): sessions with S3 timeout, seed/key security access,
-session- and security-gated DIDs and routines, DTCs and response-pending (0x78).
+The simulator answers like a real ECU, configured by the `[sim]` section of the demo ECU
+[`uds_mcp/sim/demo_ecu.toml`](uds_mcp/sim/demo_ecu.toml): sessions with S3 timeout, seed/key
+security access, session- and security-gated DIDs and routines, DTCs and response-pending (0x78).
+`uds-mcp --interface sim` starts it in-process automatically. To run it as a standalone ECU,
+for example on a Raspberry Pi with a CAN HAT:
 
 ```bash
-# Standalone ECU on a Raspberry Pi with a CAN HAT
-python -m uds_mcp.sim --interface socketcan --channel can0 --config config/sim.toml
+python -m uds_mcp.sim --interface socketcan --channel can0
 ```
 
 ### Run the server
 
-> The MCP server is not wired up yet; the command below currently only prints its settings.
+```bash
+# Against the built-in simulator (no hardware)
+uds-mcp --interface sim
+
+# Against a real ECU through PCAN, with your own ECU config
+uds-mcp --interface pcan --channel PCAN_USBBUS1 --config config/my-ecu.local.toml
+```
+
+The server speaks MCP over stdio (default) or streamable HTTP (`--transport http`).
+While the ECU is outside the default session, it sends TesterPresent (0x3E 80) in the
+background so the session survives the pauses of a person or an LLM.
+
+To see a full scripted session (read VIN, extended session, security access, write,
+routine, DTCs) without any MCP client installed:
 
 ```bash
-# Against a PCAN interface
-uds-mcp --interface pcan --channel PCAN_USBBUS1 --bitrate 500000
-
-# Against the simulator (no hardware)
-uds-mcp --interface sim
+python examples/demo_client.py
 ```
 
 ### Connect an MCP client
 
-Example for Claude Desktop (`claude_desktop_config.json`):
+Claude Code:
+
+```bash
+claude mcp add uds -- uds-mcp --interface sim
+```
+
+Claude Desktop (`claude_desktop_config.json`, use the full path to `uds-mcp` from your venv):
 
 ```json
 {
@@ -113,26 +130,32 @@ Example for Claude Desktop (`claude_desktop_config.json`):
 Then, from the client:
 
 ```
-claim the DUT, open an extended session on 0x7E0/0x7E8 and read DID 0xF190
+open an extended session, unlock security level 1 and change the VIN to UDSMCP12345678901
 ```
 
-## MCP tools (planned surface)
+## MCP tools
 
-| Tool | Description |
-|---|---|
-| `claim_dut` / `release_dut` | Acquire or release exclusive write access to the DUT |
-| `diagnostic_session_control` | 0x10 — switch session (default, programming, extended, …) |
-| `ecu_reset` | 0x11 |
-| `read_data_by_identifier` | 0x22 — read one or more DIDs |
-| `write_data_by_identifier` | 0x2E |
-| `security_access` | 0x27 — seed/key, with pluggable key algorithms |
-| `routine_control` | 0x31 — start / stop / request results |
-| `read_dtc_information` | 0x19 |
-| `clear_diagnostic_information` | 0x14 |
-| `tester_present` | 0x3E (also available as a background keep-alive) |
-| `send_raw` | Send an arbitrary UDS request and get the decoded response |
-| `read_traffic` | Stream classified bus traffic (diagnostic / non-diagnostic / unknown) |
-| `run_test_plan` | Execute a test plan file and export results |
+IDs and payloads are hex strings (`"F190"`, `"0xF190"`, `"22 F1 90"`). Every UDS tool returns
+the same JSON shape: `{service, ok, request, response, nrc, nrc_name, error, data}`. A
+negative response is a normal result (`ok: false`, `nrc_name: "SecurityAccessDenied"`), so
+the agent can reason about it.
+
+| Tool | Description | Status |
+|---|---|---|
+| `get_ecu_info` | ECU addresses, current session, known DIDs, routines, security levels | ✅ |
+| `diagnostic_session_control` | 0x10 — `default`, `programming`, `extended`, `safety` or a number | ✅ |
+| `ecu_reset` | 0x11 — `hard`, `key_off_on`, `soft` or a number | ✅ |
+| `read_data_by_identifier` | 0x22 — one or more DIDs, decoded by the ECU config | ✅ |
+| `write_data_by_identifier` | 0x2E — value as hex or ASCII | ✅ |
+| `security_access` | 0x27 — seed/key with the key algorithm configured for the level | ✅ |
+| `routine_control` | 0x31 — `start` / `stop` / `results` | ✅ |
+| `read_dtc_information` | 0x19 02 — DTCs by status mask | ✅ |
+| `clear_diagnostic_information` | 0x14 | ✅ |
+| `tester_present` | 0x3E (a background keep-alive already runs) | ✅ |
+| `send_raw` | Any UDS request as hex, raw response back (handles 0x78) | ✅ |
+| `claim_dut` / `release_dut` | Acquire or release exclusive write access to the DUT | 🔜 |
+| `read_traffic` | Stream classified bus traffic (diagnostic / non-diagnostic / unknown) | 🔜 |
+| `run_test_plan` | Execute a test plan file and export results | 🔜 |
 
 ## Project layout
 
@@ -150,7 +173,7 @@ docs/
 
 ## Roadmap
 
-1. **MCP layer** — expose the UDS client as MCP tools; claim/release access manager.
+1. **Access control** — claim/release access manager for shared DUTs over HTTP.
 2. **Multi-interface** — validate PCAN, neoVI / ValueCAN 4, Vector XL and SocketCAN on hardware.
 3. **Live traffic reader** — passive bus capture with classification against a configurable rule database.
 4. **Simulator on hardware** — validate the software simulator on a Raspberry Pi 5 + Waveshare 2-CH CAN FD HAT.

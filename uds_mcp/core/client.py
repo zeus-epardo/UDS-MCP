@@ -7,6 +7,7 @@ configuration, raw-bytes DID handling and uniform :class:`UdsResult` outcomes so
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from typing import Any
 
@@ -88,6 +89,11 @@ class UdsClient:
         )
         self._client = Client(self._conn, config=client_config)
         self._open = False
+        # One request at a time: tool calls and the keep-alive thread share the connection.
+        self._lock = threading.RLock()
+        self.session = 1
+        self._keep_alive_stop = threading.Event()
+        self._keep_alive_thread: threading.Thread | None = None
 
     # -- lifecycle -------------------------------------------------------------------------
 
@@ -98,6 +104,7 @@ class UdsClient:
         return self
 
     def close(self) -> None:
+        self.stop_keep_alive()
         if self._open:
             self._client.close()
             self._open = False
@@ -108,6 +115,30 @@ class UdsClient:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+    def start_keep_alive(self, interval_s: float | None = None) -> None:
+        """Send TesterPresent (0x3E 80, no response) periodically while outside the default
+        session, so a slow caller (a person, an LLM) does not lose the session to S3."""
+        if self._keep_alive_thread is not None:
+            return
+        if interval_s is None:
+            interval_s = self.config.timing.tester_present_interval_ms / 1000
+        self._keep_alive_stop.clear()
+
+        def loop() -> None:
+            while not self._keep_alive_stop.wait(interval_s):
+                if self.session != 1:
+                    with self._lock:
+                        self._conn.send(bytes([0x3E, 0x80]))
+
+        self._keep_alive_thread = threading.Thread(target=loop, name="uds-keep-alive", daemon=True)
+        self._keep_alive_thread.start()
+
+    def stop_keep_alive(self) -> None:
+        if self._keep_alive_thread is not None:
+            self._keep_alive_stop.set()
+            self._keep_alive_thread.join(timeout=2)
+            self._keep_alive_thread = None
 
     # -- services --------------------------------------------------------------------------
 
@@ -121,9 +152,12 @@ class UdsClient:
                 data["p2_server_max_s"], data["p2_star_server_max_s"] = timing
             return data
 
-        return self._run(
+        result = self._run(
             "DiagnosticSessionControl", lambda: self._client.change_session(session), decode
         )
+        if result.ok:
+            self.session = session
+        return result
 
     def ecu_reset(self, reset_type: int = 1) -> UdsResult:
         """0x11 — reset the ECU (1 hard, 2 key off/on, 3 soft, ...)."""
@@ -134,7 +168,10 @@ class UdsClient:
                 data["powerdown_time_s"] = resp.service_data.powerdown_time
             return data
 
-        return self._run("ECUReset", lambda: self._client.ecu_reset(reset_type), decode)
+        result = self._run("ECUReset", lambda: self._client.ecu_reset(reset_type), decode)
+        if result.ok:
+            self.session = 1
+        return result
 
     def read_data_by_identifier(self, dids: int | list[int]) -> UdsResult:
         """0x22 — read one or more DIDs.
@@ -264,6 +301,18 @@ class UdsClient:
         """
         if not payload:
             return UdsResult(service="Raw", ok=False, error="Empty request")
+        with self._lock:
+            result = self._send_raw(payload)
+        # Keep track of session changes made through raw requests too.
+        if result.ok and result.response:
+            response = bytes.fromhex(result.response)
+            if response[0] == 0x50 and len(response) > 1:
+                self.session = response[1]
+            elif response[0] == 0x51:
+                self.session = 1
+        return result
+
+    def _send_raw(self, payload: bytes) -> UdsResult:
         timing = self.config.timing
         self._conn.empty_rxqueue()
         self._conn.send(payload)
@@ -300,7 +349,8 @@ class UdsClient:
         self, service: str, call: Callable[[], Any], decode: Callable[[Any], dict]
     ) -> UdsResult:
         try:
-            resp = call()
+            with self._lock:
+                resp = call()
         except NegativeResponseException as e:
             return UdsResult(
                 service=service,
