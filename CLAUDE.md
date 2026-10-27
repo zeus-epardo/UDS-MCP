@@ -4,9 +4,18 @@ Context for Claude sessions working on UDS-MCP.
 
 ## Team
 
-UDS-MCP is built by Zeus Epardo together with Claude. It is free, MIT-licensed and
+UDS-MCP is created by Zeus Epardo and co-created with Claude. It is free, MIT-licensed and
 doubles as Zeus's public portfolio, so code quality, honest docs and a clean history matter.
-Talk with Zeus in Spanish; keep code, comments, docs and commit messages in English.
+Talk with Zeus in Spanish; keep code, comments, docs and commit messages in English
+(`TEAM.md` is the exception: it is our working notebook, in Spanish).
+
+## Team memory
+
+@TEAM.md
+
+Follow the session ritual in `TEAM.md`: at the start, read it plus recent `git log` and
+summarize where we are; before the last commit of a session, update its log, decisions
+and pending items.
 
 ## Ground rules
 
@@ -22,9 +31,10 @@ Talk with Zeus in Spanish; keep code, comments, docs and commit messages in Engl
 
 ## Workflow
 
-- Work on a feature branch; one topic per PR.
+- Zeus and Claude are the whole team: work directly on `main`, no PRs. Use a short-lived
+  branch only for experiments.
 - Conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`),
-  ending with `Co-Authored-By: Claude <noreply@anthropic.com>` when Claude contributed.
+  ending with a `Co-Authored-By: Claude ... <noreply@anthropic.com>` trailer when Claude contributed.
 - Before committing: `ruff check . && ruff format --check . && pytest`.
 - Tests run on python-can's `virtual` bus; hardware tests must skip when the
   interface is absent. Update `CHANGELOG.md` under `[Unreleased]`.

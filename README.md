@@ -155,3 +155,14 @@ Issues and pull requests are welcome. Please open an issue before large changes 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Credits
+
+UDS-MCP is created by **[Zeus Epardo](https://github.com/zeus-epardo)** and co-created with
+**[Claude](https://www.anthropic.com/claude)** (Anthropic) through Claude Code: design,
+implementation and docs are built together, and Claude's commits carry a `Co-Authored-By` trailer.
+
+Built on the shoulders of [python-can](https://github.com/hardbyte/python-can),
+[can-isotp](https://github.com/pylessard/python-can-isotp),
+[udsoncan](https://github.com/pylessard/python-udsoncan) and the
+[Model Context Protocol](https://modelcontextprotocol.io) SDK.
